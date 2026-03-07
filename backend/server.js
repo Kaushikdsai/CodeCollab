@@ -1,4 +1,5 @@
 require("dotenv").config();
+const mongoose=require("mongoose");
 const express=require("express");
 const http=require("http");
 const { Server }=require("socket.io");
@@ -33,12 +34,21 @@ io.on("connection", (socket) => { //key
     });
 
     socket.on("code-change", ({ roomId,code }) => {
+        roomCode[roomId]=code;
         socket.to(roomId).emit("code-update",code);
     });
 
     socket.on("disconnect", () => {
         console.log("User disconnected: ",socket.id);
     });
+});
+
+mongoose.connect(process.env.MONGO_URI)
+.then(() => {
+    console.log("MongoDB connected");
+})
+.catch((err) => {
+    console.error("MongoDB connection error:", err);
 });
 
 server.listen(5000, () => {
