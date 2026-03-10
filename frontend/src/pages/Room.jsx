@@ -15,7 +15,7 @@ function Room(){
         socket.emit("join-room",roomId);
         socket.on("code-update", (newCode) => {
             setCode(newCode);
-        })
+        });
         return () => socket.off("code-update");
     }, [roomId]);
 
@@ -27,7 +27,7 @@ function Room(){
         })
     }
 
-    const runCode = async () => {
+    const runCode=async () => {
         try{
             const res=await axios.post("http://localhost:5000/api/run", {code});
             const data=res.data;
