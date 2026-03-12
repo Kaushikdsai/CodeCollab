@@ -7,12 +7,14 @@ const cors=require("cors");
 const runRoute=require("./routes/run");
 const Room=require("./models/Room");
 const authRoutes=require("./routes/auth");
-const authMiddleware = require("./middleware/authMiddleware");
+const authMiddleware=require("./middleware/authMiddleware");
+const rateLimitMiddleware=require("./middleware/rateLimitMiddleware");
 const jwt=require("jsonwebtoken");
 
 const app=express();
 app.use(cors());
 app.use(express.json());
+app.use("/api",rateLimitMiddleware);
 app.use("/api/auth",authRoutes);
 app.use(authMiddleware);
 app.use("/api/run",runRoute);
@@ -108,7 +110,10 @@ io.on("connection", (socket) => { //key
     });
 });
 
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGO_URI,{
+    maxPoolSize: 10,     
+    minPoolSize: 2
+})
 .then(() => {
     console.log("MongoDB connected");
 })

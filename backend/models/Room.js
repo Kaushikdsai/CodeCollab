@@ -5,7 +5,8 @@ const participantSchema = new mongoose.Schema(
     socketId: String,
     userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
+        ref: "User",
+        index: true
     },
     name: String,
     role: {
@@ -26,19 +27,21 @@ const roomSchema = new mongoose.Schema(
     roomId: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        index: true
     },
 
     creator: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
+        ref: "User",
+        index: true
     },
 
     participants: [participantSchema],
 
     language: {
         type: String,
-        enum: ["java","python","cpp","javascript"],
+        enum: ["java","python","cpp","javascript "],
         default: "java"
     },
 
