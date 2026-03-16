@@ -14,7 +14,7 @@ function Room(){
     const [code,setCode]=useState("");
     const [output,setOutput]=useState("");
     const [participants,setParticipants]=useState([]);
-    const [language,setLanguage]=useState("");
+    const [language,setLanguage]=useState("java");
 
     const token=sessionStorage.getItem("token");
 

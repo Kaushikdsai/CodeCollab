@@ -46,7 +46,7 @@ function Home(){
         <div>
             <Navbar />
             <div className="home-container1">
-                <h1 className="home-title">CODE ORCHESTARTOR</h1>
+                <h1 className="home-title">CODE COLLAB</h1>
                 <h2 className="home-tag">Collaborate. Compile. Execute.</h2>
                 <div className="join-section">
                     <button className="home-newroom" onClick={createNewRoom}>New Room</button>
@@ -55,7 +55,7 @@ function Home(){
                 </div>
             </div>
             <div className="features">
-                <h2 className="cc-features">Why Code Orechestrator?</h2>
+                <h2 className="cc-features">Why Code Collab?</h2>
                 <div className="carousel">
                     <button className="arrow left" onClick={prevFeature}>❮</button>
                     <div className="feature-card">
