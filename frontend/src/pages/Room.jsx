@@ -60,6 +60,22 @@ function Room(){
             Y.applyUpdate(doc,new Uint8Array(update));
         });
 
+        let hasSentState=false;
+        socket.on("request-doc-state", ({ requester }) => {
+            if(!hasSentState){
+                hasSentState=true;
+                const state=Y.encodeStateAsUpdate(doc);
+                socket.emit("send-doc-state", {
+                    requester,
+                    state: Array.from(state)
+                });
+            }
+        });
+
+        socket.on("receive-doc-state", (state) => {
+            Y.applyUpdate(doc,new Uint8Array(state));
+        });
+
         socket.on("room-info", ({ creator }) => {
             const payload=JSON.parse(atob(token.split('.')[1]));
             const userId=payload.userId;
@@ -82,6 +98,8 @@ function Room(){
         return () => {
             socket.off("connect");
             socket.off("yjs-update");
+            socket.off("request-doc-state");
+            socket.off("receive-doc-state");
             socket.off("code-output");
             socket.off("participants-update");
             socket.off("room-info");

@@ -63,6 +63,12 @@ io.on("connection",(socket)=>{
         socket.join(roomId);
         socket.roomId=roomId;
 
+        setTimeout(() => {
+            socket.to(roomId).emit("request-doc-state", {
+                requester: socket.id
+            });
+        },500);
+
         console.log(`User ${socket.id} joined room ${roomId}`);
 
         let room=await Room.findOne({ roomId });
@@ -123,8 +129,12 @@ io.on("connection",(socket)=>{
     });
 
 
-    socket.on("yjs-update", async ({ roomId, update }) => {
+    socket.on("yjs-update", ({ roomId, update }) => {
         socket.to(roomId).emit("yjs-update", update);
+    });
+
+    socket.on("send-doc-state", ({ requester,state }) => {
+        io.to(requester).emit("receive-doc-state",state);
     });
 
     socket.on("disconnect",async()=>{
