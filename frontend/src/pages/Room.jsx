@@ -52,12 +52,12 @@ function Room(){
         else socket.on("connect", joinRoom);
 
         doc.on("update", (update) => {
-            socket.emit("yjs-update", { roomId, update });
+            socket.emit("yjs-update", { roomId, update: Array.from(update) });
         });
 
         socket.off("yjs-update");
         socket.on("yjs-update", (update) => {
-            Y.applyUpdate(doc, update);
+            Y.applyUpdate(doc,new Uint8Array(update));
         });
 
         socket.on("room-info", ({ creator }) => {
