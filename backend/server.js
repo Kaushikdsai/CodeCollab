@@ -60,28 +60,24 @@ io.on("connection",(socket)=>{
     console.log("User connected: ",socket.id);
 
     socket.on("join-room",async({ roomId,name })=>{
-
         socket.join(roomId);
         socket.roomId=roomId;
 
         console.log(`User ${socket.id} joined room ${roomId}`);
 
-        let code=await redis.get(`room:${roomId}:code`);
         let room=await Room.findOne({ roomId });
-
-        if(!code){
-            code=(room?.currentCode || "");
-            await redis.set(`room:${roomId}:code`,code);
-        }
 
         if(!room){
             room=await Room.create({
                 roomId,
-                currentCode:code
+                currentCode:"",
+                creator: socket.user.userId
             });
         }
 
-        socket.emit("code-update",code);
+        socket.emit("room-info", {
+            creator: room.creator
+        });
 
         const participant={
             socketId:socket.id,
@@ -104,7 +100,6 @@ io.on("connection",(socket)=>{
         }
 
         await redis.sadd(`room:${roomId}:participants`,JSON.stringify(participant));
-
         await redis.expire(`room:${roomId}:participants`,3600);
 
         const updatedRaw=await redis.smembers(`room:${roomId}:participants`);
@@ -127,21 +122,13 @@ io.on("connection",(socket)=>{
         io.to(roomId).emit("participants-update",participants);
     });
 
-    socket.on("code-change",async({ roomId,code })=>{
-        console.log("Code change received from:",socket.id);
-        console.log("Room:",roomId);
 
-        await redis.set(`room:${roomId}:code`,code,"EX",3600);
-
-        const storedCode=await redis.get(`room:${roomId}:code`);
-        console.log("Redis stored code:",storedCode);
-
-        socket.to(roomId).emit("code-update",code);
+    socket.on("yjs-update", async ({ roomId, update }) => {
+        socket.to(roomId).emit("yjs-update", update);
     });
 
     socket.on("disconnect",async()=>{
         console.log("User disconnected: ",socket.id);
-
         const roomId=socket.roomId;
         if(!roomId) return;
 
@@ -149,7 +136,6 @@ io.on("connection",(socket)=>{
 
         for(const p of participantsRaw){
             const parsed=JSON.parse(p);
-
             if(parsed.socketId===socket.id){
                 await redis.srem(`room:${roomId}:participants`,p);
             }
@@ -159,6 +145,43 @@ io.on("connection",(socket)=>{
         const updatedParticipants=updatedRaw.map(p=>JSON.parse(p));
 
         io.to(roomId).emit("participants-update",updatedParticipants);
+    });
+
+    socket.on("remove-participant", async ({ roomId,targetSocketId }) => {
+        try{
+            const room=await Room.findOne({ roomId });
+            if(!room) return;
+            if(room.creator.toString() !== socket.user.userId) {
+                return socket.emit("error", "Only creator can remove participants");
+            }
+            const participantsRaw=await redis.smembers(`room:${roomId}:participants`);
+            let targetParticipant=null;
+
+            for(const p of participantsRaw){
+                const parsed=JSON.parse(p);
+
+                if(parsed.socketId===targetSocketId){
+                    targetParticipant=parsed;
+                    await redis.srem(`room:${roomId}:participants`, p);
+                    break;
+                }
+            }
+
+            if(!targetParticipant) return;
+            const sockets=await io.fetchSockets();
+            const targetSocket=sockets.find(s => s.id === targetSocketId);
+            if(targetSocket){
+                targetSocket.leave(roomId);
+                targetSocket.emit("removed-from-room");
+            }
+
+            const updatedRaw=await redis.smembers(`room:${roomId}:participants`);
+            const updatedParticipants=updatedRaw.map(p => JSON.parse(p));
+            io.to(roomId).emit("participants-update", updatedParticipants);
+        }
+        catch(err){
+            console.error(err);
+        }
     });
 });
 

@@ -1,6 +1,30 @@
-import Editor from '@monaco-editor/react';
+import { useEffect, useRef } from "react";
+import Editor from "@monaco-editor/react";
+import { MonacoBinding } from "y-monaco";
 
-function CodeEditor({ code,setCode,className,language }){
+function CodeEditor({ yText, language, className }) {
+    const editorRef = useRef(null);
+    const bindingRef = useRef(null);
+
+    const handleEditorDidMount = (editor) => {
+        editorRef.current = editor;
+
+        if (yText && editor.getModel()) {
+            bindingRef.current = new MonacoBinding(
+                yText,
+                editor.getModel(),
+                new Set([editor]),
+                null
+            );
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            if (bindingRef.current) bindingRef.current.destroy();
+        };
+    }, []);
+
     return (
         <div className={className}>
             <Editor
@@ -8,8 +32,8 @@ function CodeEditor({ code,setCode,className,language }){
                 width="170vh"
                 language={language}
                 theme="vs-dark"
-                value={code}
-                onChange={(value) => setCode(value)}
+                defaultValue=""
+                onMount={handleEditorDidMount}
             />
         </div>
     );
