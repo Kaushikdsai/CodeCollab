@@ -21,6 +21,24 @@ function Room(){
     const token=sessionStorage.getItem("token");
     const ydocRef=useRef(null);
     const yTextRef=useRef(null);
+    const timeoutRef=useRef(null);
+    const lastSavedRef=useRef("");
+    const hasInitializedRef=useRef(false);
+
+    const saveCode=async(code)=>{
+        if(lastSavedRef.current===code) return;
+        lastSavedRef.current=code;
+
+        try{
+            await axios.post("http://localhost:5000/api/room/save",{
+                roomId,
+                code
+            });
+        }
+        catch(err){
+            console.error("Save failed",err);
+        }
+    };
 
     useEffect(() => {
         const doc=new Y.Doc();
@@ -32,6 +50,23 @@ function Room(){
         setTimeout(() => {
             setYTextState(yText);
         }, 0);
+
+        const loadCode=async()=>{
+            try{
+                const res=await axios.get(`http://localhost:5000/api/room/${roomId}`);
+                const savedCode=res.data.code;
+
+                if(savedCode && yText.length===0){
+                    yText.insert(0,savedCode);
+                    hasInitializedRef.current=true;
+                }
+            }
+            catch(err){
+                console.error("Load failed",err);
+            }
+        };
+
+        loadCode();
 
         socket.auth={ token };
         if(!socket.connected){
@@ -53,6 +88,14 @@ function Room(){
 
         doc.on("update", (update) => {
             socket.emit("yjs-update", { roomId, update: Array.from(update) });
+
+            const currentCode=yTextRef.current?.toString() || "";
+
+            if(timeoutRef.current) clearTimeout(timeoutRef.current);
+
+            timeoutRef.current=setTimeout(()=>{
+                saveCode(currentCode);
+            },1000);
         });
 
         socket.off("yjs-update");
@@ -61,6 +104,7 @@ function Room(){
         });
 
         let hasSentState=false;
+
         socket.on("request-doc-state", ({ requester }) => {
             if(!hasSentState){
                 hasSentState=true;
@@ -73,7 +117,9 @@ function Room(){
         });
 
         socket.on("receive-doc-state", (state) => {
+            if(hasInitializedRef.current) return;
             Y.applyUpdate(doc,new Uint8Array(state));
+            hasInitializedRef.current=true;
         });
 
         socket.on("room-info", ({ creator }) => {
@@ -109,10 +155,40 @@ function Room(){
 
     }, [roomId]);
 
+    useEffect(()=>{
+        const interval=setInterval(()=>{
+            const currentCode=yTextRef.current?.toString() || "";
+            if(currentCode) saveCode(currentCode);
+        },10000);
+
+        return ()=>clearInterval(interval);
+    },[]);
+
+    useEffect(()=>{
+        const handleBeforeUnload=()=>{
+            const code=yTextRef.current?.toString() || "";
+
+            navigator.sendBeacon(
+                "http://localhost:5000/api/room/save",
+                new Blob([JSON.stringify({ roomId, code })], { type: "application/json" })
+            );
+        };
+
+        window.addEventListener("beforeunload",handleBeforeUnload);
+
+        return ()=>{
+            window.removeEventListener("beforeunload",handleBeforeUnload);
+        };
+    },[]);
+
     const handleReset = () => {
         const yText=yTextRef.current;
         if(!yText) return;
+
         yText.delete(0, yText.length);
+        setOutput("");
+        saveCode("");
+        socket.emit("code-reset", { roomId });
     };
 
     const runCode=async () => {

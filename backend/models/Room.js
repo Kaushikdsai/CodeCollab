@@ -2,7 +2,6 @@ const mongoose=require("mongoose");
 
 const participantSchema = new mongoose.Schema(
 {
-    socketId: String,
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -41,7 +40,7 @@ const roomSchema = new mongoose.Schema(
 
     language: {
         type: String,
-        enum: ["java","python","cpp","javascript "],
+        enum: ["java","python","cpp","javascript"],
         default: "java"
     },
 
